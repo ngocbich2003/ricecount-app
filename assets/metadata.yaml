@@ -1,0 +1,13 @@
+# Ultralytics 🚀 AGPL-3.0 License - https://ultralytics.com/license
+
+description: Ultralytics YOLOv11 model trained on RiceSeed Data
+author: Dao Ngoc Bich
+license: AGPL-3.0 https://ultralytics.com/license
+task: detect
+batch: 1
+imgsz:
+  - 1024
+  - 1024
+names:
+  0: germ
+  1: not_germ
