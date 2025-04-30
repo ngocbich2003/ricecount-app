@@ -260,7 +260,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
       if (kDebugMode) {
         print("Stack trace: $stackTrace");
       }
-      ScaffoldMessenger.of(context as BuildContext).showSnackBar(
+      ScaffoldMessenger.of(this.context).showSnackBar(
         SnackBar(content: Text('Detection failed: $e')),
       );
     } finally {
@@ -308,15 +308,24 @@ class _PreviewScreenState extends State<PreviewScreen> {
   Future<void> savePredictionToDatabase(String predictionResult) async {
     try {
       final DatabaseHelper dbHelper = DatabaseHelper.instance;
+      final Map<String, dynamic> jsonData = jsonDecode(predictionResult);
+      final int germCount = jsonData['germinated_count'] ?? 0;
+      final int notGermCount = jsonData['not_germinated_count'] ?? 0;
 
+      if (kDebugMode) {
+        print("Saving detection results to database:");
+        print("  - Image path: ${widget.imageFile.path}");
+        print("  - Germinated count: $germCount");
+        print("  - Not germinated count: $notGermCount");
+      }
+
+      // 1. Lưu vào bảng images như hiện tại
       if (imageDbId != null) {
-        // Cập nhật kết quả dự đoán cho ảnh đã tồn tại
         await dbHelper.updateImagePrediction(imageDbId!, predictionResult);
         if (kDebugMode) {
           print("Updated prediction for image ID: $imageDbId");
         }
       } else {
-        // Trường hợp hiếm gặp: nếu imageDbId chưa được khởi tạo
         final db = await dbHelper.database;
         final imagePath = widget.imageFile.path;
 
@@ -341,16 +350,24 @@ class _PreviewScreenState extends State<PreviewScreen> {
         }
       }
 
-      // Hiển thị thông báo thành công
-      if (mounted) {
-        ScaffoldMessenger.of(context as BuildContext).showSnackBar(
-          const SnackBar(content: Text('Prediction saved to database')),
-        );
+      // 2. Lưu vào bảng detection_results cho CapturesScreen
+      await dbHelper.saveDetectionResult(
+        widget.projectId,
+        widget.imageFile.path,
+        germCount, 
+        notGermCount
+      );
+
+      if (kDebugMode) {
+        print("Successfully saved detection results to both tables");
       }
     } catch (e) {
       if (kDebugMode) {
         print("Failed to save prediction to database: $e");
       }
+      ScaffoldMessenger.of(this.context).showSnackBar(
+        SnackBar(content: Text('Failed to save prediction: $e')),
+      );
     }
   }
 

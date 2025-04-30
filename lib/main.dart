@@ -1,22 +1,32 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import 'screens/project_list_screen.dart';
+import 'screens/auth_screen.dart';
+import 'services/auth_service.dart';
 
 List<CameraDescription> cameras = [];
 
 Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
   // Fetch the available cameras before initializing the app.
   try {
-    WidgetsFlutterBinding.ensureInitialized();
     cameras = await availableCameras();
   } on CameraException catch (e) {
     if (kDebugMode) {
       print('Error in fetching the cameras: $e');
     }
   }
-  runApp(const MyApp());
+  
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => AuthService(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -28,9 +38,20 @@ class MyApp extends StatelessWidget {
       title: 'Riceseed Counter',
       theme: ThemeData(
         primarySwatch: Colors.blue,
+        scaffoldBackgroundColor: Colors.white,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.blue,
+          foregroundColor: Colors.white,
+        ),
       ),
       debugShowCheckedModeBanner: false,
-      home: const ProjectListScreen(),
+      home: Consumer<AuthService>(
+        builder: (context, authService, _) {
+          return authService.isLoggedIn
+              ? const ProjectListScreen()
+              : const AuthScreen();
+        },
+      ),
     );
   }
 }
