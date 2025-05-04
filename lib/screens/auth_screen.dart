@@ -42,9 +42,9 @@ class _AuthScreenState extends State<AuthScreen> {
       if (!success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_isLogin 
-              ? 'Login failed. Please check your credentials.' 
-              : 'Registration failed. Username may already exist.'),
+            content: Text(_isLogin
+                ? 'Login failed. Please check your credentials.'
+                : 'Registration failed. Username may already exist.'),
             backgroundColor: Colors.red,
           ),
         );
@@ -76,7 +76,10 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Container(
         padding: const EdgeInsets.all(20.0),
         child: Center(
@@ -87,22 +90,25 @@ class _AuthScreenState extends State<AuthScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
+                  Text(
                     'Rice Seed Counter',
-                    style: TextStyle(
+                    style: theme.textTheme.titleLarge?.copyWith(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Colors.blue,
                     ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 40),
                   TextFormField(
                     controller: _usernameController,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Username',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.person),
+                      border: const OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.person, color: theme.primaryColor),
+                      labelStyle: theme.textTheme.bodyMedium,
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: theme.primaryColor),
+                      ),
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -114,10 +120,14 @@ class _AuthScreenState extends State<AuthScreen> {
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _passwordController,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Password',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.lock),
+                      border: const OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.lock, color: theme.primaryColor),
+                      labelStyle: theme.textTheme.bodyMedium,
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: theme.primaryColor),
+                      ),
                     ),
                     obscureText: true,
                     validator: (value) {
@@ -135,10 +145,16 @@ class _AuthScreenState extends State<AuthScreen> {
                     onPressed: _isLoading ? null : _submitForm,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
+                      backgroundColor: theme.primaryColor,
+                      foregroundColor: const Color(0xFF4C8C4A),
                     ),
                     child: _isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : Text(_isLogin ? 'Login' : 'Register'),
+                        ? const CircularProgressIndicator(
+                            color: Color(0xFF4C8C4A))
+                        : Text(
+                            _isLogin ? 'Login' : 'Register',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                   ),
                   const SizedBox(height: 16),
                   TextButton(
@@ -147,6 +163,9 @@ class _AuthScreenState extends State<AuthScreen> {
                         _isLogin = !_isLogin;
                       });
                     },
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF748C74),
+                    ),
                     child: Text(
                       _isLogin
                           ? 'Don\'t have an account? Register'
