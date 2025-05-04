@@ -6,12 +6,13 @@ import 'package:provider/provider.dart';
 import 'screens/project_list_screen.dart';
 import 'screens/auth_screen.dart';
 import 'services/auth_service.dart';
+import 'theme/app_theme.dart'; // Thêm import cho theme
 
 List<CameraDescription> cameras = [];
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Fetch the available cameras before initializing the app.
   try {
     cameras = await availableCameras();
@@ -20,7 +21,7 @@ Future<void> main() async {
       print('Error in fetching the cameras: $e');
     }
   }
-  
+
   runApp(
     ChangeNotifierProvider(
       create: (_) => AuthService(),
@@ -36,14 +37,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Riceseed Counter',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        scaffoldBackgroundColor: Colors.white,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.blue,
-          foregroundColor: Colors.white,
-        ),
-      ),
+      theme: AppTheme.riceSeedTheme, // Sử dụng theme mới
       debugShowCheckedModeBanner: false,
       home: Consumer<AuthService>(
         builder: (context, authService, _) {
