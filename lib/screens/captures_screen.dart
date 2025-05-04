@@ -23,12 +23,15 @@ class _CapturesScreenState extends State<CapturesScreen> {
   final ImagePicker _picker = ImagePicker();
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
   List<File> _imageFileList = [];
-  Map<String, bool> _detectedImages = {}; // Track which images have been processed
-  Map<String, Map<String, int>> _detectionResults = {}; // Store detection results for each image
+  Map<String, bool> _detectedImages =
+      {}; // Track which images have been processed
+  Map<String, Map<String, int>> _detectionResults =
+      {}; // Store detection results for each image
   bool _isLoading = false; // Loading indicator
 
   int get totalImages => _imageFileList.length;
-  int get detectedImages => _detectedImages.values.where((detected) => detected).length;
+  int get detectedImages =>
+      _detectedImages.values.where((detected) => detected).length;
   int get totalGermCount => _getDetectionCount('germ');
   int get totalNotGermCount => _getDetectionCount('not_germ');
 
@@ -99,21 +102,23 @@ class _CapturesScreenState extends State<CapturesScreen> {
         where: 'project_id = ?',
         whereArgs: [widget.projectId],
       );
-      
-      print('RAW DB DATA: Found ${rawResults.length} records in detection_results');
+
+      print(
+          'RAW DB DATA: Found ${rawResults.length} records in detection_results');
       for (var row in rawResults) {
-        print('  - Record: ${row['image_path']} | Germ: ${row['germ_count']} | Not Germ: ${row['not_germ_count']}');
+        print(
+            '  - Record: ${row['image_path']} | Germ: ${row['germ_count']} | Not Germ: ${row['not_germ_count']}');
       }
-      
+
       // 2. Lấy kết quả phát hiện qua helper method
       final results = await _dbHelper.getDetectionResults(widget.projectId);
-      
+
       // 3. Cập nhật state với dữ liệu mới
       setState(() {
         _detectedImages = results['detected_images'] ?? {};
         _detectionResults = results['detection_results'] ?? {};
       });
-      
+
       // 4. Debug thông tin chi tiết
       print('PROCESSED DATA:');
       print('  - Detected images: ${_detectedImages.length}');
@@ -122,13 +127,13 @@ class _CapturesScreenState extends State<CapturesScreen> {
       print('  - Detected images count: $detectedImages');
       print('  - Total germ count: $totalGermCount');
       print('  - Total not germ count: $totalNotGermCount');
-      
+
       // 5. Debug từng file cụ thể để kiểm tra matching
       for (var file in _imageFileList) {
         final path = file.path;
         final isDetected = _detectedImages[path] ?? false;
         final result = _detectionResults[path];
-        
+
         print('IMAGE CHECK: ${_getFilenameFromPath(path)}');
         print('  - Path: $path');
         print('  - Is detected: $isDetected');
@@ -147,7 +152,8 @@ class _CapturesScreenState extends State<CapturesScreen> {
     }
   }
 
-  Future<void> _saveDetectionResult(File imageFile, Map<String, int> results) async {
+  Future<void> _saveDetectionResult(
+      File imageFile, Map<String, int> results) async {
     try {
       final germCount = results['germ'] ?? 0;
       final notGermCount = results['not_germ'] ?? 0;
@@ -165,7 +171,7 @@ class _CapturesScreenState extends State<CapturesScreen> {
       );
 
       print('  - Save result ID: $savedId');
-      
+
       // Refresh the detection results after saving
       await _fetchDetectionResults();
     } catch (e) {
@@ -175,7 +181,8 @@ class _CapturesScreenState extends State<CapturesScreen> {
 
   Future<void> _pickImage() async {
     try {
-      final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+      final XFile? pickedFile =
+          await _picker.pickImage(source: ImageSource.gallery);
       if (pickedFile != null) {
         setState(() {
           _imageFileList.add(File(pickedFile.path));
@@ -204,22 +211,50 @@ class _CapturesScreenState extends State<CapturesScreen> {
       final excel = xl.Excel.createExcel();
       final sheet = excel['Detection Results'];
 
-      sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).value = xl.TextCellValue('Project ID');
-      sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 0)).value = xl.TextCellValue('Total Images');
-      sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 0)).value = xl.TextCellValue('Detected Images');
-      sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 0)).value = xl.TextCellValue('Germ Count');
-      sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: 0)).value = xl.TextCellValue('Not Germ Count');
+      sheet
+          .cell(xl.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0))
+          .value = xl.TextCellValue('Project ID');
+      sheet
+          .cell(xl.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 0))
+          .value = xl.TextCellValue('Total Images');
+      sheet
+          .cell(xl.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 0))
+          .value = xl.TextCellValue('Detected Images');
+      sheet
+          .cell(xl.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 0))
+          .value = xl.TextCellValue('Germ Count');
+      sheet
+          .cell(xl.CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: 0))
+          .value = xl.TextCellValue('Not Germ Count');
 
-      sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1)).value = xl.IntCellValue(widget.projectId);
-      sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 1)).value = xl.IntCellValue(totalImages);
-      sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 1)).value = xl.IntCellValue(detectedImages);
-      sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 1)).value = xl.IntCellValue(totalGermCount);
-      sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: 1)).value = xl.IntCellValue(totalNotGermCount);
+      sheet
+          .cell(xl.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1))
+          .value = xl.IntCellValue(widget.projectId);
+      sheet
+          .cell(xl.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 1))
+          .value = xl.IntCellValue(totalImages);
+      sheet
+          .cell(xl.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 1))
+          .value = xl.IntCellValue(detectedImages);
+      sheet
+          .cell(xl.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 1))
+          .value = xl.IntCellValue(totalGermCount);
+      sheet
+          .cell(xl.CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: 1))
+          .value = xl.IntCellValue(totalNotGermCount);
 
-      sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 3)).value = xl.TextCellValue('Image');
-      sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 3)).value = xl.TextCellValue('Detected');
-      sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 3)).value = xl.TextCellValue('Germ Count');
-      sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 3)).value = xl.TextCellValue('Not Germ Count');
+      sheet
+          .cell(xl.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 3))
+          .value = xl.TextCellValue('Image');
+      sheet
+          .cell(xl.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 3))
+          .value = xl.TextCellValue('Detected');
+      sheet
+          .cell(xl.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 3))
+          .value = xl.TextCellValue('Germ Count');
+      sheet
+          .cell(xl.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 3))
+          .value = xl.TextCellValue('Not Germ Count');
 
       int rowIndex = 4;
       for (var image in _imageFileList) {
@@ -228,17 +263,30 @@ class _CapturesScreenState extends State<CapturesScreen> {
         final isDetected = _detectedImages[path] ?? false;
         final results = _detectionResults[path] ?? {};
 
-        sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = xl.TextCellValue(filename);
-        sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = xl.TextCellValue(isDetected ? 'Yes' : 'No');
-        sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex)).value = xl.IntCellValue(results['germ'] ?? 0);
-        sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex)).value = xl.IntCellValue(results['not_germ'] ?? 0);
+        sheet
+            .cell(xl.CellIndex.indexByColumnRow(
+                columnIndex: 0, rowIndex: rowIndex))
+            .value = xl.TextCellValue(filename);
+        sheet
+            .cell(xl.CellIndex.indexByColumnRow(
+                columnIndex: 1, rowIndex: rowIndex))
+            .value = xl.TextCellValue(isDetected ? 'Yes' : 'No');
+        sheet
+            .cell(xl.CellIndex.indexByColumnRow(
+                columnIndex: 2, rowIndex: rowIndex))
+            .value = xl.IntCellValue(results['germ'] ?? 0);
+        sheet
+            .cell(xl.CellIndex.indexByColumnRow(
+                columnIndex: 3, rowIndex: rowIndex))
+            .value = xl.IntCellValue(results['not_germ'] ?? 0);
 
         rowIndex++;
       }
 
       final directory = await getApplicationDocumentsDirectory();
       final fileTime = DateTime.now().millisecondsSinceEpoch;
-      final filePath = '${directory.path}/rice_detection_results_$fileTime.xlsx';
+      final filePath =
+          '${directory.path}/rice_detection_results_$fileTime.xlsx';
       final file = File(filePath);
 
       await file.writeAsBytes(excel.encode()!);
@@ -261,15 +309,18 @@ class _CapturesScreenState extends State<CapturesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Captures', style: TextStyle(color: Colors.black)),
-        backgroundColor: Colors.white,
-        elevation: 0,
+        title: Text('Captures', style: theme.appBarTheme.titleTextStyle),
+        backgroundColor: theme.appBarTheme.backgroundColor,
+        elevation: theme.appBarTheme.elevation,
+        iconTheme: theme.appBarTheme.iconTheme,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator(color: theme.primaryColor))
           : Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
@@ -278,7 +329,7 @@ class _CapturesScreenState extends State<CapturesScreen> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.grey[100],
+                      color: theme.cardColor,
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
@@ -291,37 +342,25 @@ class _CapturesScreenState extends State<CapturesScreen> {
                     ),
                     child: Column(
                       children: [
-                        const Text(
+                        Text(
                           'Project Statistics',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: theme.textTheme.titleLarge,
                         ),
                         const SizedBox(height: 12),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
+                            _buildStatItem(Icons.image, totalImages.toString(),
+                                'Total Images', theme),
+                            _buildStatItem(Icons.check_circle_outline,
+                                detectedImages.toString(), 'Detected', theme),
+                            _buildStatItem(Icons.check_circle,
+                                totalGermCount.toString(), 'Germ', theme),
                             _buildStatItem(
-                              Icons.image,
-                              totalImages.toString(),
-                              'Total Images',
-                            ),
-                            _buildStatItem(
-                              Icons.check_circle_outline,
-                              detectedImages.toString(),
-                              'Detected',
-                            ),
-                            _buildStatItem(
-                              Icons.check_circle,
-                              totalGermCount.toString(),
-                              'Germ',
-                            ),
-                            _buildStatItem(
-                              Icons.cancel_outlined,
-                              totalNotGermCount.toString(),
-                              'Not Germ',
-                            ),
+                                Icons.cancel_outlined,
+                                totalNotGermCount.toString(),
+                                'Not Germ',
+                                theme),
                           ],
                         ),
                       ],
@@ -334,7 +373,7 @@ class _CapturesScreenState extends State<CapturesScreen> {
                         child: _buildActionButton(
                           icon: Icons.add_photo_alternate,
                           label: 'Add Images',
-                          color: Colors.blue,
+                          color: const Color.fromARGB(255, 54, 154, 161),
                           onTap: _pickImage,
                         ),
                       ),
@@ -345,7 +384,8 @@ class _CapturesScreenState extends State<CapturesScreen> {
                           label: 'Capture',
                           color: Colors.green,
                           onTap: () async {
-                            final capturedImages = await Navigator.of(context).push(
+                            final capturedImages =
+                                await Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (context) => CameraScreen(
                                   projectId: widget.projectId,
@@ -366,8 +406,8 @@ class _CapturesScreenState extends State<CapturesScreen> {
                       Expanded(
                         child: _buildActionButton(
                           icon: Icons.file_download,
-                          label: 'Export',
-                          color: Colors.orange,
+                          label: 'Export Info',
+                          color: const Color.fromARGB(255, 228, 204, 84),
                           onTap: _exportToExcel,
                         ),
                       ),
@@ -386,7 +426,8 @@ class _CapturesScreenState extends State<CapturesScreen> {
                             ),
                           )
                         : GridView.builder(
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 2,
                               crossAxisSpacing: 12,
                               mainAxisSpacing: 12,
@@ -395,11 +436,13 @@ class _CapturesScreenState extends State<CapturesScreen> {
                             itemCount: _imageFileList.length,
                             itemBuilder: (context, index) {
                               final imageFile = _imageFileList[index];
-                              final isDetected = _detectedImages[imageFile.path] ?? false;
+                              final isDetected =
+                                  _detectedImages[imageFile.path] ?? false;
 
                               return GestureDetector(
                                 onTap: () {
-                                  Navigator.of(context).push(
+                                  Navigator.of(context)
+                                      .push(
                                     MaterialPageRoute(
                                       builder: (context) => PreviewScreen(
                                         fileList: _imageFileList,
@@ -407,7 +450,8 @@ class _CapturesScreenState extends State<CapturesScreen> {
                                         projectId: widget.projectId,
                                       ),
                                     ),
-                                  ).then((_) {
+                                  )
+                                      .then((_) {
                                     _fetchImagesFromDatabase();
                                     _fetchDetectionResults();
                                   });
@@ -416,7 +460,9 @@ class _CapturesScreenState extends State<CapturesScreen> {
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                      color: isDetected ? Colors.green : Colors.grey[300]!,
+                                      color: isDetected
+                                          ? Colors.green
+                                          : Colors.grey[300]!,
                                       width: 2,
                                     ),
                                     boxShadow: [
@@ -467,30 +513,30 @@ class _CapturesScreenState extends State<CapturesScreen> {
             ),
       floatingActionButton: FloatingActionButton(
         onPressed: _loadAllData,
+        backgroundColor: theme.floatingActionButtonTheme.backgroundColor,
+        foregroundColor: theme.floatingActionButtonTheme.foregroundColor,
         tooltip: 'Refresh Data',
         child: const Icon(Icons.refresh),
       ),
     );
   }
 
-  Widget _buildStatItem(IconData icon, String value, String label) {
+  Widget _buildStatItem(
+      IconData icon, String value, String label, ThemeData theme) {
     return Column(
       children: [
-        Icon(icon, color: Colors.blue[700]),
+        Icon(icon, color: theme.primaryColor),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
+          style: theme.textTheme.titleLarge?.copyWith(
             fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
         ),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
+          style: theme.textTheme.bodyMedium,
         ),
       ],
     );
@@ -511,6 +557,7 @@ class _CapturesScreenState extends State<CapturesScreen> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
         ),
+        elevation: 2,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
