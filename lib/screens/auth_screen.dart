@@ -146,14 +146,19 @@ class _AuthScreenState extends State<AuthScreen> {
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       backgroundColor: theme.primaryColor,
-                      foregroundColor: const Color(0xFF4C8C4A),
+                      foregroundColor:
+                          Colors.white, // Thay đổi màu chữ thành trắng
                     ),
                     child: _isLoading
                         ? const CircularProgressIndicator(
-                            color: Color(0xFF4C8C4A))
+                            color: Colors
+                                .white) // Thay đổi màu loading indicator thành trắng
                         : Text(
                             _isLogin ? 'Login' : 'Register',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white, // Đảm bảo màu chữ luôn trắng
+                            ),
                           ),
                   ),
                   const SizedBox(height: 16),

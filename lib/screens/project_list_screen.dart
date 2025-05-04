@@ -42,34 +42,36 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
     // Get projects for the specific user
     final projects = await _dbHelper.getProjects(_userId);
     final List<Map<String, dynamic>> enrichedProjects = [];
-    
+
     for (var project in projects) {
       final projectId = project['id'] as int;
-      
+
       // Lấy tổng số ảnh
       final totalImages = await _dbHelper.getProjectImageCount(projectId);
-      
+
       // Lấy file ảnh đầu tiên làm ảnh đại diện
       String? previewImage;
       final fileList = await _dbHelper.getProjectFiles(projectId);
       if (fileList.isNotEmpty) {
         previewImage = fileList.first.path;
       }
-      
+
       // Lấy thêm thông tin thống kê từ detection_results
       final detectionStats = await _dbHelper.getDetectionResults(projectId);
       final detectedImages = detectionStats['detected_images']?.length ?? 0;
-      
+
       // Tính tổng số germ và not_germ
       int germinatedCount = 0;
       int notGerminatedCount = 0;
-      final detectionResults = detectionStats['detection_results'] as Map<String, Map<String, int>>? ?? {};
-      
+      final detectionResults = detectionStats['detection_results']
+              as Map<String, Map<String, int>>? ??
+          {};
+
       for (var result in detectionResults.values) {
         germinatedCount += result['germ'] ?? 0;
         notGerminatedCount += result['not_germ'] ?? 0;
       }
-      
+
       enrichedProjects.add({
         ...project,
         'total_images': totalImages,
@@ -79,7 +81,7 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
         'not_germinated_count': notGerminatedCount,
       });
     }
-    
+
     setState(() {
       _projects = enrichedProjects;
       _filteredProjects = enrichedProjects;
@@ -146,12 +148,12 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
       try {
         // Pass the userId when creating a new project
         await _dbHelper.addProject(result, _userId);
-        
+
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Project "$result" created successfully')),
         );
-        
+
         _fetchProjects();
       } catch (e) {
         if (!mounted) return;
@@ -164,6 +166,8 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Rice Count'),
@@ -182,11 +186,11 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(color: Colors.blue),
+            DrawerHeader(
+              decoration: BoxDecoration(color: theme.primaryColor),
               child: Text(
                 'Menu',
-                style: TextStyle(color: Colors.white, fontSize: 24),
+                style: theme.textTheme.titleLarge,
               ),
             ),
             ListTile(
@@ -217,9 +221,9 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
       body: Column(
         children: [
           Container(
-            decoration: const BoxDecoration(
-              color: Color(0xFFFFF8E1),
-              borderRadius: BorderRadius.only(
+            decoration: BoxDecoration(
+              color: theme.primaryColor.withOpacity(0.2),
+              borderRadius: const BorderRadius.only(
                 bottomLeft: Radius.circular(30.0),
                 bottomRight: Radius.circular(30.0),
               ),
@@ -229,197 +233,232 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'Search project',
-                hintStyle: const TextStyle(color: Colors.black54),
+                hintStyle: TextStyle(color: theme.textTheme.bodyMedium?.color),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: theme.cardColor,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20.0),
                   borderSide: BorderSide.none,
                 ),
-                prefixIcon: const Icon(Icons.search, color: Colors.black54),
+                prefixIcon: Icon(Icons.search,
+                    color: theme.textTheme.bodyMedium?.color),
               ),
-              style: const TextStyle(color: Colors.black),
+              style: theme.textTheme.bodyMedium,
             ),
           ),
           Expanded(
-            child: _isLoading 
-            ? const Center(child: CircularProgressIndicator())
-            : _filteredProjects.isEmpty
-              ? const Center(child: Text('No projects found. Create a new project to get started.'))
-              : ListView.builder(
-                itemCount: _filteredProjects.length,
-                itemBuilder: (context, index) {
-                  final project = _filteredProjects[index];
-                  final hasPreview = project['preview_image'] != null;
-                  
-                  return Card(
-                    margin: const EdgeInsets.symmetric(
-                        vertical: 8.0, horizontal: 8.0),
-                    elevation: 3,
-                    child: InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => CapturesScreen(
-                              projectId: project['id'],
-                            ),
-                          ),
-                        ).then((_) => _fetchProjects());
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Ảnh preview hoặc placeholder
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: SizedBox(
-                                width: 100,
-                                height: 100,
-                                child: hasPreview
-                                  ? Image.file(
-                                      File(project['preview_image']),
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) {
-                                        return Container(
-                                          color: Colors.grey.shade200,
-                                          child: const Center(
-                                            child: Icon(Icons.image_not_supported, size: 40, color: Colors.grey),
-                                          ),
-                                        );
-                                      },
-                                    )
-                                  : Container(
-                                      color: Colors.grey.shade200,
-                                      child: const Center(
-                                        child: Icon(Icons.image, size: 40, color: Colors.grey),
-                                      ),
-                                    ),
-                              ),
-                            ),
-                            
-                            const SizedBox(width: 16),
-                            
-                            // Thông tin project
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Project title và delete button
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          project['name'],
-                                          style: const TextStyle(
-                                            fontSize: 18, 
-                                            fontWeight: FontWeight.bold
-                                          ),
-                                        ),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.delete, color: Colors.red),
-                                        onPressed: () async {
-                                          final confirm = await showDialog<bool>(
-                                            context: context,
-                                            builder: (context) => AlertDialog(
-                                              title: const Text('Delete Project'),
-                                              content: const Text(
-                                                  'Are you sure you want to delete this project?'),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () =>
-                                                      Navigator.of(context).pop(false),
-                                                  child: const Text('Cancel'),
-                                                ),
-                                                TextButton(
-                                                  onPressed: () =>
-                                                      Navigator.of(context).pop(true),
-                                                  child: const Text('Delete'),
-                                                ),
-                                              ],
-                                            ),
-                                          );
-                                          if (confirm == true) {
-                                            _deleteProject(project['id']);
-                                          }
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                  
-                                  const Divider(),
-                                  
-                                  // Thông tin thống kê
-                                  Text(
-                                    'Images: ${project['total_images'] ?? 0} total, ${project['detected_images'] ?? 0} detected',
-                                    style: const TextStyle(fontWeight: FontWeight.w500),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      Text(
-                                        'Germinated: ${project['germinated_count'] ?? 0}',
-                                        style: const TextStyle(
-                                          color: Colors.blue,
-                                          fontWeight: FontWeight.w500
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Text(
-                                        'Not germinated: ${project['not_germinated_count'] ?? 0}',
-                                        style: const TextStyle(
-                                          color: Colors.red,
-                                          fontWeight: FontWeight.w500
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  
-                                  const SizedBox(height: 8),
-                                  
-                                  // View project button
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: TextButton(
-                                      onPressed: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) => CapturesScreen(
-                                              projectId: project['id'],
-                                            ),
-                                          ),
-                                        ).then((_) => _fetchProjects());
-                                      },
-                                      style: TextButton.styleFrom(
-                                        foregroundColor: Colors.white,
-                                        backgroundColor: Colors.blue,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                      ),
-                                      child: const Text('View Project'),
+            child: _isLoading
+                ? Center(
+                    child: CircularProgressIndicator(color: theme.primaryColor))
+                : _filteredProjects.isEmpty
+                    ? Text(
+                        'No projects found. Create a new project to get started.',
+                        style: theme.textTheme.bodyMedium,
+                      )
+                    : ListView.builder(
+                        itemCount: _filteredProjects.length,
+                        itemBuilder: (context, index) {
+                          final project = _filteredProjects[index];
+                          final hasPreview = project['preview_image'] != null;
+
+                          return Card(
+                            margin: const EdgeInsets.symmetric(
+                                vertical: 8.0, horizontal: 8.0),
+                            elevation: 3,
+                            color: theme.cardColor,
+                            child: InkWell(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => CapturesScreen(
+                                      projectId: project['id'],
                                     ),
                                   ),
-                                ],
+                                ).then((_) => _fetchProjects());
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.all(12.0),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Ảnh preview hoặc placeholder
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: SizedBox(
+                                        width: 100,
+                                        height: 100,
+                                        child: hasPreview
+                                            ? Image.file(
+                                                File(project['preview_image']),
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (context, error,
+                                                    stackTrace) {
+                                                  return Container(
+                                                    color: Colors.grey.shade200,
+                                                    child: const Center(
+                                                      child: Icon(
+                                                          Icons
+                                                              .image_not_supported,
+                                                          size: 40,
+                                                          color: Colors.grey),
+                                                    ),
+                                                  );
+                                                },
+                                              )
+                                            : Container(
+                                                color: Colors.grey.shade200,
+                                                child: const Center(
+                                                  child: Icon(Icons.image,
+                                                      size: 40,
+                                                      color: Colors.grey),
+                                                ),
+                                              ),
+                                      ),
+                                    ),
+
+                                    const SizedBox(width: 16),
+
+                                    // Thông tin project
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          // Project title và delete button
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  project['name'],
+                                                  style: theme
+                                                      .textTheme.titleLarge,
+                                                ),
+                                              ),
+                                              IconButton(
+                                                icon: const Icon(Icons.delete,
+                                                    color: Colors.red),
+                                                onPressed: () async {
+                                                  final confirm =
+                                                      await showDialog<bool>(
+                                                    context: context,
+                                                    builder: (context) =>
+                                                        AlertDialog(
+                                                      title: const Text(
+                                                          'Delete Project'),
+                                                      content: const Text(
+                                                          'Are you sure you want to delete this project?'),
+                                                      actions: [
+                                                        TextButton(
+                                                          onPressed: () =>
+                                                              Navigator.of(
+                                                                      context)
+                                                                  .pop(false),
+                                                          child: const Text(
+                                                              'Cancel'),
+                                                        ),
+                                                        TextButton(
+                                                          onPressed: () =>
+                                                              Navigator.of(
+                                                                      context)
+                                                                  .pop(true),
+                                                          child: const Text(
+                                                              'Delete'),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  );
+                                                  if (confirm == true) {
+                                                    _deleteProject(
+                                                        project['id']);
+                                                  }
+                                                },
+                                              ),
+                                            ],
+                                          ),
+
+                                          Divider(color: theme.primaryColor),
+
+                                          // Thông tin thống kê
+                                          Text(
+                                            'Images: ${project['total_images'] ?? 0} total, ${project['detected_images'] ?? 0} detected',
+                                            style: theme.textTheme.bodyMedium
+                                                ?.copyWith(
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Row(
+                                            children: [
+                                              Text(
+                                                'Germinated: ${project['germinated_count'] ?? 0}',
+                                                style: theme
+                                                    .textTheme.bodyMedium
+                                                    ?.copyWith(
+                                                  color: theme.primaryColor,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Text(
+                                                'Not germinated: ${project['not_germinated_count'] ?? 0}',
+                                                style: theme
+                                                    .textTheme.bodyMedium
+                                                    ?.copyWith(
+                                                  color: Colors.red,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+
+                                          const SizedBox(height: 8),
+
+                                          // View project button
+                                          Align(
+                                            alignment: Alignment.centerRight,
+                                            child: TextButton(
+                                              onPressed: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (context) =>
+                                                        CapturesScreen(
+                                                      projectId: project['id'],
+                                                    ),
+                                                  ),
+                                                ).then((_) => _fetchProjects());
+                                              },
+                                              style: TextButton.styleFrom(
+                                                foregroundColor: Colors.white,
+                                                backgroundColor:
+                                                    theme.primaryColor,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                              ),
+                                              child: const Text('View Project'),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ],
-                        ),
+                          );
+                        },
                       ),
-                    ),
-                  );
-                },
-              ),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _createNewProject,
+        backgroundColor: theme.floatingActionButtonTheme.backgroundColor,
         child: const Icon(Icons.add),
       ),
     );
