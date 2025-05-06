@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:io' as io;
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
@@ -11,8 +12,8 @@ import 'package:flutter/material.dart';
 import '/screens/captures_screen.dart';
 import 'package:ultralytics_yolo/ultralytics_yolo.dart';
 import 'package:ultralytics_yolo/yolo_model.dart';
-
 import '../utils/database_helper.dart';
+import 'dart:ui';
 
 class PreviewScreen extends StatefulWidget {
   final File imageFile;
@@ -39,6 +40,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
   int germinatedCount = 0;
   int notGerminatedCount = 0;
   int? imageDbId;
+  bool isSaving = false;
+  final GlobalKey _screenshotKey = GlobalKey();
 
   @override
   void initState() {
@@ -117,7 +120,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
         final List<dynamic> detectionsList = jsonData['detections'] ?? [];
         if (detectionsList.isEmpty) return;
 
-        final List<DetectedObject?> loadedDetections = detectionsList.map((item) {
+        final List<DetectedObject?> loadedDetections =
+            detectionsList.map((item) {
           final bbox = item['bbox'];
           return DetectedObject(
             index: item['class_id'],
@@ -188,6 +192,9 @@ class _PreviewScreenState extends State<PreviewScreen> {
         );
         objectDetector = ObjectDetector(model: model);
         await objectDetector?.loadModel();
+        objectDetector?.setNumItemsThreshold(250);
+        objectDetector?.setConfidenceThreshold(0.5);
+        objectDetector?.setIouThreshold(0.15);
         if (kDebugMode) {
           print('Model loaded successfully');
         }
@@ -352,11 +359,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
 
       // 2. Lưu vào bảng detection_results cho CapturesScreen
       await dbHelper.saveDetectionResult(
-        widget.projectId,
-        widget.imageFile.path,
-        germCount, 
-        notGermCount
-      );
+          widget.projectId, widget.imageFile.path, germCount, notGermCount);
 
       if (kDebugMode) {
         print("Successfully saved detection results to both tables");
@@ -368,6 +371,60 @@ class _PreviewScreenState extends State<PreviewScreen> {
       ScaffoldMessenger.of(this.context).showSnackBar(
         SnackBar(content: Text('Failed to save prediction: $e')),
       );
+    }
+  }
+
+  Future<void> _saveImageWithBoundingBoxes() async {
+    if (isSaving) return;
+
+    setState(() {
+      isSaving = true;
+    });
+
+    try {
+      // Capture màn hình
+      final RenderRepaintBoundary boundary = _screenshotKey.currentContext!
+          .findRenderObject() as RenderRepaintBoundary;
+      final image = await boundary.toImage(pixelRatio: 3.0); // Tăng chất lượng
+      final byteData = await image.toByteData(format: ImageByteFormat.png);
+      final buffer = byteData!.buffer.asUint8List();
+
+      // Lưu file
+      final downloadsPath = await _getDownloadsPath();
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final filePath = '$downloadsPath/detected_image_$timestamp.png';
+
+      final file = File(filePath);
+      await file.writeAsBytes(buffer);
+
+      if (mounted) {
+        ScaffoldMessenger.of(this.context).showSnackBar(
+          const SnackBar(content: Text('Image saved to Downloads folder')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(this.context).showSnackBar(
+          SnackBar(content: Text('Failed to save image: $e')),
+        );
+      }
+    } finally {
+      setState(() {
+        isSaving = false;
+      });
+    }
+  }
+
+  // Add this helper method to get Downloads path
+  Future<String> _getDownloadsPath() async {
+    if (Platform.isAndroid) {
+      final directory = await getExternalStorageDirectory();
+      final downloadsPath = directory?.path.replaceAll(
+          '/Android/data/com.nbee.riceseed_count/files', '/Download');
+      return downloadsPath ?? '/storage/emulated/0/Download';
+    } else {
+      final directory = await getApplicationDocumentsDirectory();
+      return '${directory.path}/Downloads';
     }
   }
 
@@ -397,7 +454,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Nút Detect Objects
+                    // Detect Objects button
                     SizedBox(
                       width: 150,
                       child: TextButton(
@@ -410,15 +467,38 @@ class _PreviewScreenState extends State<PreviewScreen> {
                         child: Text(
                           isLoading
                               ? 'Detecting...'
-                              : (isPredicted ? 'Re-run Detection' : 'Detect Objects'),
+                              : (isPredicted
+                                  ? 'Re-run Detection'
+                                  : 'Detect Objects'),
                           textAlign: TextAlign.center,
                         ),
                       ),
                     ),
-                    
+
                     const SizedBox(height: 8),
-                    
-                    // Nút Delete Image
+
+                    // Download button
+                    SizedBox(
+                      width: 150,
+                      child: TextButton(
+                        onPressed: (isPredicted && !isSaving)
+                            ? _saveImageWithBoundingBoxes
+                            : null,
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.black,
+                          backgroundColor: const Color(0xFFD1E8C3),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: Text(
+                          isSaving ? 'Saving...' : 'Download Image',
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    // Delete button
                     SizedBox(
                       width: 150,
                       child: TextButton(
@@ -428,17 +508,19 @@ class _PreviewScreenState extends State<PreviewScreen> {
                             await widget.imageFile.delete();
 
                             // Xóa file khỏi database
-                            final DatabaseHelper dbHelper = DatabaseHelper.instance;
+                            final DatabaseHelper dbHelper =
+                                DatabaseHelper.instance;
 
                             // Xóa ảnh từ bảng images nếu có
                             if (imageDbId != null) {
                               await dbHelper.deleteImage(imageDbId!);
                             }
 
-                            final updatedFileList =
-                                widget.fileList.map((file) => file.path).toList();
-                            updatedFileList
-                                .remove(widget.imageFile.path); // Loại bỏ file đã xóa
+                            final updatedFileList = widget.fileList
+                                .map((file) => file.path)
+                                .toList();
+                            updatedFileList.remove(
+                                widget.imageFile.path); // Loại bỏ file đã xóa
                             await dbHelper.updateProjectFiles(
                                 widget.projectId, updatedFileList);
 
@@ -446,7 +528,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                    content: Text('Image deleted successfully')),
+                                    content:
+                                        Text('Image deleted successfully')),
                               );
                             }
 
@@ -465,7 +548,9 @@ class _PreviewScreenState extends State<PreviewScreen> {
                           } catch (e) {
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Failed to delete image: $e')),
+                                SnackBar(
+                                    content:
+                                        Text('Failed to delete image: $e')),
                               );
                             }
                           }
@@ -483,21 +568,34 @@ class _PreviewScreenState extends State<PreviewScreen> {
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(width: 12),
-                
+
                 // Phần hiển thị thông tin bên phải
                 if (isPredicted && !isLoading)
                   Expanded(
                     child: Container(
+                      height:
+                          150, // Đặt chiều cao bằng với tổng chiều cao của 3 nút
                       padding: const EdgeInsets.all(12.0),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.9),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Column(
+                        mainAxisAlignment:
+                            MainAxisAlignment.center, // Căn giữa theo chiều dọc
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          const SizedBox(height: 10),
+                          const Text(
+                            'Detection Info',
+                            style: TextStyle(
+                              color: Color.fromARGB(255, 16, 32, 32),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
+                            ),
+                          ),
                           const SizedBox(height: 8),
                           Text(
                             'Germinated: $germinatedCount',
@@ -507,16 +605,16 @@ class _PreviewScreenState extends State<PreviewScreen> {
                               fontSize: 14,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 8),
                           Text(
                             'Not Germinated: $notGerminatedCount',
                             style: const TextStyle(
-                              color: Colors.red,
+                              color: Color.fromARGB(255, 201, 73, 64),
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 8),
                           Text(
                             'Total: ${germinatedCount + notGerminatedCount}',
                             style: const TextStyle(
@@ -533,31 +631,34 @@ class _PreviewScreenState extends State<PreviewScreen> {
             ),
           ),
           Expanded(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Image.file(
-                  widget.imageFile,
-                  fit: BoxFit.contain,
-                ),
-                if (detections != null && imageSize != null)
-                  CustomPaint(
-                    size: Size.infinite,
-                    painter: BoundingBoxPainter(
-                      detections: detections!,
-                      imageSize: imageSize!,
-                    ),
+            child: RepaintBoundary(
+              key: _screenshotKey,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.file(
+                    widget.imageFile,
+                    fit: BoxFit.contain,
                   ),
-                if (isLoading)
-                  Container(
-                    color: Colors.black.withOpacity(0.5),
-                    child: const Center(
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
+                  if (detections != null && imageSize != null)
+                    CustomPaint(
+                      size: Size.infinite,
+                      painter: BoundingBoxPainter(
+                        detections: detections!,
+                        imageSize: imageSize!,
                       ),
                     ),
-                  ),
-              ],
+                  if (isLoading)
+                    Container(
+                      color: Colors.black.withOpacity(0.5),
+                      child: const Center(
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ],
