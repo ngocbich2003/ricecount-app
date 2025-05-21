@@ -34,6 +34,10 @@ class _CapturesScreenState extends State<CapturesScreen> {
       _detectedImages.values.where((detected) => detected).length;
   int get totalGermCount => _getDetectionCount('germ');
   int get totalNotGermCount => _getDetectionCount('not_germ');
+  String get germinationRate {
+    if (totalGermCount + totalNotGermCount == 0) return '0.0%';
+    return '${((totalGermCount / (totalGermCount + totalNotGermCount)) * 100).toStringAsFixed(1)}%';
+  }
 
   @override
   void initState() {
@@ -64,14 +68,7 @@ class _CapturesScreenState extends State<CapturesScreen> {
         _detectionResults = results['detection_results'] ?? {};
         _isLoading = false;
       });
-
-      print('Loaded ${files.length} images');
-      print('Detected images: ${_detectedImages.length}');
-      print('Detection results: ${_detectionResults.length}');
-
       for (var file in _imageFileList) {
-        print('File path: ${file.path}');
-        print('Is detected: ${_detectedImages[file.path]}');
         if (_detectedImages[file.path] == true) {
           print('Germ count: ${_detectionResults[file.path]?['germ']}');
           print('Not germ count: ${_detectionResults[file.path]?['not_germ']}');
@@ -81,7 +78,6 @@ class _CapturesScreenState extends State<CapturesScreen> {
       setState(() {
         _isLoading = false;
       });
-      print('Error loading data: $e');
     }
   }
 
@@ -314,7 +310,7 @@ class _CapturesScreenState extends State<CapturesScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text('Captures', style: theme.appBarTheme.titleTextStyle),
+        title: Text('View Project', style: theme.appBarTheme.titleTextStyle),
         backgroundColor: theme.appBarTheme.backgroundColor,
         elevation: theme.appBarTheme.elevation,
         iconTheme: theme.appBarTheme.iconTheme,
@@ -351,7 +347,7 @@ class _CapturesScreenState extends State<CapturesScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
                             _buildStatItem(Icons.image, totalImages.toString(),
-                                'Total Images', theme),
+                                'Total', theme),
                             _buildStatItem(Icons.check_circle_outline,
                                 detectedImages.toString(), 'Detected', theme),
                             _buildStatItem(Icons.check_circle,
@@ -361,6 +357,8 @@ class _CapturesScreenState extends State<CapturesScreen> {
                                 totalNotGermCount.toString(),
                                 'Not Germ',
                                 theme),
+                            _buildStatItem(
+                                Icons.percent, germinationRate, ' Rate', theme),
                           ],
                         ),
                       ],

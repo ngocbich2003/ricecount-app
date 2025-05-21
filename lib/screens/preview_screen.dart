@@ -430,18 +430,25 @@ class _PreviewScreenState extends State<PreviewScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: theme.appBarTheme.backgroundColor,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(Icons.arrow_back, color: theme.iconTheme.color),
           onPressed: () {
             Navigator.pop(context);
           },
         ),
-        title: const Text('Preview', style: TextStyle(color: Colors.white)),
+        title: Text(
+          'Preview',
+          style: theme.appBarTheme.titleTextStyle,
+        ),
+        elevation: theme.appBarTheme.elevation,
+        iconTheme: theme.appBarTheme.iconTheme,
       ),
-      backgroundColor: Colors.black,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -460,8 +467,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
                       child: TextButton(
                         onPressed: isLoading ? null : detectObjects,
                         style: TextButton.styleFrom(
-                          foregroundColor: Colors.black,
-                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.white,
+                          backgroundColor: Colors.blue,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                         child: Text(
@@ -485,8 +492,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
                             ? _saveImageWithBoundingBoxes
                             : null,
                         style: TextButton.styleFrom(
-                          foregroundColor: Colors.black,
-                          backgroundColor: const Color(0xFFD1E8C3),
+                          foregroundColor: Colors.white,
+                          backgroundColor: Colors.green, // Green color
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                         child: Text(
@@ -504,37 +511,45 @@ class _PreviewScreenState extends State<PreviewScreen> {
                       child: TextButton(
                         onPressed: () async {
                           try {
-                            // Xóa file khỏi hệ thống
-                            await widget.imageFile.delete();
-
-                            // Xóa file khỏi database
                             final DatabaseHelper dbHelper =
                                 DatabaseHelper.instance;
 
-                            // Xóa ảnh từ bảng images nếu có
-                            if (imageDbId != null) {
-                              await dbHelper.deleteImage(imageDbId!);
+                            // 1. Xóa file vật lý
+                            if (await widget.imageFile.exists()) {
+                              await widget.imageFile.delete();
                             }
 
+                            // 2. Xóa dữ liệu từ database
+                            if (imageDbId != null) {
+                              // Xóa từ bảng images
+                              await dbHelper.deleteImage(imageDbId!);
+
+                              // Xóa kết quả detection
+                              await dbHelper.deleteDetectionResult(
+                                  widget.projectId, widget.imageFile.path);
+                            }
+
+                            // 3. Cập nhật danh sách file trong project
                             final updatedFileList = widget.fileList
+                                .where((file) =>
+                                    file.path != widget.imageFile.path)
                                 .map((file) => file.path)
                                 .toList();
-                            updatedFileList.remove(
-                                widget.imageFile.path); // Loại bỏ file đã xóa
+
                             await dbHelper.updateProjectFiles(
                                 widget.projectId, updatedFileList);
 
-                            // Hiển thị thông báo thành công
+                            // 4. Cập nhật số liệu thống kê của project
+                            await dbHelper.updateProjectStats(widget.projectId);
+
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                     content:
                                         Text('Image deleted successfully')),
                               );
-                            }
 
-                            // Điều hướng quay lại màn hình CapturesScreen
-                            if (mounted) {
+                              // Quay về màn hình CapturesScreen
                               await Navigator.pushAndRemoveUntil(
                                 context,
                                 MaterialPageRoute(
@@ -557,7 +572,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
                         },
                         style: TextButton.styleFrom(
                           foregroundColor: Colors.white,
-                          backgroundColor: Colors.red,
+                          backgroundColor: const Color.fromARGB(
+                              255, 200, 70, 70), // Softer red
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                         child: const Text(
@@ -576,10 +592,11 @@ class _PreviewScreenState extends State<PreviewScreen> {
                   Expanded(
                     child: Container(
                       height:
-                          150, // Đặt chiều cao bằng với tổng chiều cao của 3 nút
+                          158, // Đặt chiều cao bằng với tổng chiều cao của 3 nút
                       padding: const EdgeInsets.all(12.0),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.9),
+                        color: const Color.fromARGB(255, 214, 240, 202)
+                            .withOpacity(0.9),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Column(
@@ -587,40 +604,49 @@ class _PreviewScreenState extends State<PreviewScreen> {
                             MainAxisAlignment.center, // Căn giữa theo chiều dọc
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 6),
                           const Text(
                             'Detection Info',
                             style: TextStyle(
                               color: Color.fromARGB(255, 16, 32, 32),
                               fontWeight: FontWeight.bold,
-                              fontSize: 20,
+                              fontSize: 16,
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 5),
                           Text(
                             'Germinated: $germinatedCount',
                             style: const TextStyle(
                               color: Colors.blue,
                               fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                              fontSize: 13,
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 5),
                           Text(
                             'Not Germinated: $notGerminatedCount',
                             style: const TextStyle(
                               color: Color.fromARGB(255, 201, 73, 64),
                               fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                              fontSize: 13,
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 5),
                           Text(
                             'Total: ${germinatedCount + notGerminatedCount}',
                             style: const TextStyle(
                               color: Colors.black,
                               fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            'Germination Rate: ${(germinatedCount + notGerminatedCount) > 0 ? ((germinatedCount / (germinatedCount + notGerminatedCount)) * 100).toStringAsFixed(1) : '0.0'}%',
+                            style: const TextStyle(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
                             ),
                           ),
                         ],

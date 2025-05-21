@@ -77,7 +77,7 @@ class DatabaseHelper {
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
       )
     ''');
-    
+
     // Create projects table with user_id field
     await db.execute('''
       CREATE TABLE projects(
@@ -92,7 +92,7 @@ class DatabaseHelper {
         not_germinated_count INTEGER DEFAULT 0
       )
     ''');
-    
+
     // Create images table
     await db.execute('''
       CREATE TABLE images (
@@ -105,7 +105,7 @@ class DatabaseHelper {
         FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
       )
     ''');
-    
+
     // Create detection_results table
     await db.execute('''
       CREATE TABLE detection_results(
@@ -138,14 +138,15 @@ class DatabaseHelper {
     }
   }
 
-  Future<Map<String, dynamic>?> loginUser(String username, String password) async {
+  Future<Map<String, dynamic>?> loginUser(
+      String username, String password) async {
     final db = await database;
     final users = await db.query(
       'users',
       where: 'username = ? AND password = ?',
       whereArgs: [username, password],
     );
-    
+
     if (users.isNotEmpty) {
       return users.first;
     }
@@ -176,14 +177,14 @@ class DatabaseHelper {
 
   Future<void> updateProjectFiles(int projectId, List<String> filePaths) async {
     final db = await database;
-    
+
     // Xóa các ảnh cũ
     await db.delete(
       'images',
       where: 'project_id = ?',
       whereArgs: [projectId],
     );
-    
+
     // Thêm các ảnh mới
     final batch = db.batch();
     for (var filePath in filePaths) {
@@ -193,7 +194,7 @@ class DatabaseHelper {
         'is_predicted': 0,
       });
     }
-    
+
     await batch.commit(noResult: true);
   }
 
@@ -230,7 +231,7 @@ class DatabaseHelper {
   Future<void> bulkAddImages(int projectId, List<String> filePaths) async {
     final db = await database;
     final batch = db.batch();
-    
+
     for (var filePath in filePaths) {
       batch.insert('images', {
         'project_id': projectId,
@@ -238,11 +239,12 @@ class DatabaseHelper {
         'is_predicted': 0,
       });
     }
-    
+
     await batch.commit(noResult: true);
   }
 
-  Future<void> updateImagePrediction(int imageId, String predictionResult) async {
+  Future<void> updateImagePrediction(
+      int imageId, String predictionResult) async {
     final db = await database;
     await db.update(
       'images',
@@ -312,16 +314,16 @@ class DatabaseHelper {
 
   Future<Map<String, int>> getProjectCounts(int projectId) async {
     final db = await database;
-    
+
     final List<Map<String, dynamic>> images = await db.query(
       'images',
       where: 'project_id = ? AND is_predicted = 1',
       whereArgs: [projectId],
     );
-    
+
     int totalGerminated = 0;
     int totalNotGerminated = 0;
-    
+
     for (var image in images) {
       final predictionResult = image['prediction_result'] as String?;
       if (predictionResult != null && predictionResult.isNotEmpty) {
@@ -329,11 +331,10 @@ class DatabaseHelper {
           final Map<String, dynamic> jsonData = jsonDecode(predictionResult);
           totalGerminated += jsonData['germinated_count'] as int? ?? 0;
           totalNotGerminated += jsonData['not_germinated_count'] as int? ?? 0;
-        } catch (e) {
-        }
+        } catch (e) {}
       }
     }
-    
+
     return {
       'germinated_count': totalGerminated,
       'not_germinated_count': totalNotGerminated,
@@ -342,26 +343,24 @@ class DatabaseHelper {
 
   Future<String?> getFirstProjectImage(int projectId) async {
     final db = await database;
-    final images = await db.query(
-      'images',
-      columns: ['file_path'],
-      where: 'project_id = ?',
-      whereArgs: [projectId],
-      orderBy: 'created_at ASC',
-      limit: 1
-    );
-    
+    final images = await db.query('images',
+        columns: ['file_path'],
+        where: 'project_id = ?',
+        whereArgs: [projectId],
+        orderBy: 'created_at ASC',
+        limit: 1);
+
     if (images.isNotEmpty) {
       return images.first['file_path'] as String?;
     }
-    
+
     final projects = await db.query(
       'projects',
       columns: ['files'],
       where: 'id = ?',
       whereArgs: [projectId],
     );
-    
+
     if (projects.isNotEmpty && projects.first['files'] != null) {
       final filesStr = projects.first['files'] as String;
       if (filesStr.isNotEmpty) {
@@ -371,57 +370,58 @@ class DatabaseHelper {
         }
       }
     }
-    
+
     return null;
   }
 
   Future<Map<String, dynamic>> getDetectionResults(int projectId) async {
     final db = await database;
-    
+
     // Get detected images
     final detectedImagesResult = await db.query(
       'detection_results',
       where: 'project_id = ?',
       whereArgs: [projectId],
     );
-    
+
     Map<String, bool> detectedImages = {};
     Map<String, Map<String, int>> detectionResults = {};
-    
+
     for (var row in detectedImagesResult) {
       final imagePath = row['image_path'] as String;
       final germCount = row['germ_count'] as int? ?? 0;
       final notGermCount = row['not_germ_count'] as int? ?? 0;
-      
+
       // Mark image as detected
       detectedImages[imagePath] = true;
-      
+
       // Store detection counts
       detectionResults[imagePath] = {
         'germ': germCount,
         'not_germ': notGermCount,
       };
     }
-    
+
     print('Detected images: $detectedImages'); // Debug
     print('Detection results: $detectionResults'); // Debug
-    
+
     return {
       'detected_images': detectedImages,
       'detection_results': detectionResults,
     };
   }
 
-  Future<int> saveDetectionResult(int projectId, String imagePath, int germCount, int notGermCount) async {
+  Future<int> saveDetectionResult(
+      int projectId, String imagePath, int germCount, int notGermCount) async {
     final db = await database;
-    
+
     // Check if a result already exists for this image
     final existing = await db.query(
       'detection_results',
       where: 'project_id = ? AND image_path = ?',
       whereArgs: [projectId, imagePath],
     );
-    
+
     if (existing.isNotEmpty) {
       // Update existing record
       return await db.update(
@@ -446,5 +446,42 @@ class DatabaseHelper {
         },
       );
     }
+  }
+
+  // Xóa kết quả detection của một ảnh
+  Future<void> deleteDetectionResult(int projectId, String imagePath) async {
+    final db = await database;
+    await db.delete(
+      'detection_results',
+      where: 'project_id = ? AND image_path = ?',
+      whereArgs: [projectId, imagePath],
+    );
+  }
+
+  // Cập nhật thống kê của project
+  Future<void> updateProjectStats(int projectId) async {
+    final db = await database;
+
+    // Đếm tổng số ảnh
+    final totalImages = await getProjectImageCount(projectId);
+
+    // Đếm số ảnh đã detect
+    final detectedImages = await getDetectedImageCount(projectId);
+
+    // Tính tổng số hạt nảy mầm và không nảy mầm
+    final counts = await getProjectCounts(projectId);
+
+    // Cập nhật vào bảng projects
+    await db.update(
+      'projects',
+      {
+        'total_images': totalImages,
+        'detected_images': detectedImages,
+        'germinated_count': counts['germinated_count'],
+        'not_germinated_count': counts['not_germinated_count'],
+      },
+      where: 'id = ?',
+      whereArgs: [projectId],
+    );
   }
 }
